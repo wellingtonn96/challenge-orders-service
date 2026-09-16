@@ -1,0 +1,80 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: challenge-orders-app
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USER: ${POSTGRES_USER:-orders}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-orders}
+      DATABASE_NAME: ${POSTGRES_DB:-orders}
+      DATABASE_URL: postgres://${POSTGRES_USER:-orders}:${POSTGRES_PASSWORD:-orders}@postgres:5432/${POSTGRES_DB:-orders}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-orders}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-orders}
+      RABBITMQ_VHOST: /
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-orders}:${RABBITMQ_PASSWORD:-orders}@rabbitmq:5672/
+      RABBITMQ_ORDERS_QUEUE: orders
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - orders-net
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: challenge-orders-postgres
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-orders}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orders}
+      POSTGRES_DB: ${POSTGRES_DB:-orders}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-orders} -d ${POSTGRES_DB:-orders}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - orders-net
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: challenge-orders-rabbitmq
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-orders}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-orders}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - orders-net
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+
+networks:
+  orders-net:
+    driver: bridge

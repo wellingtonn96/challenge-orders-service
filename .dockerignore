@@ -1,0 +1,16 @@
+node_modules
+dist
+coverage
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+*.md
+Dockerfile
+docker-compose*.yml
+.vscode
+.idea
+test
+**/*.spec.ts
+**/jest.config.*
