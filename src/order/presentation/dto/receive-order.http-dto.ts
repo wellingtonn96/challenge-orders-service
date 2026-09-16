@@ -17,7 +17,7 @@ export const receiveOrderSchema = Joi.object({
     .min(1)
     .required(),
   currency: Joi.string().length(3).uppercase().required(),
-  idempotency_key: Joi.string().required(),
+  idempotency_key: Joi.string().uuid().required(),
 });
 
 export type ReceiveOrderHttpDto = {

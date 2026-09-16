@@ -13,12 +13,12 @@ describe('ReceiveOrderUseCase', () => {
     customer: { email: 'user@example.com', name: 'Ana' },
     items: [{ sku: 'ABC123', qty: 2, unit_price: 59.9 }],
     currency: 'USD',
-    idempotencyKey: 'key-1',
+    idempotencyKey: '550e8400-e29b-41d4-a716-446655440000',
   };
 
   const existingOrder = {
     id: 'order-1',
-    idempotencyKey: 'key-1',
+    idempotencyKey: '550e8400-e29b-41d4-a716-446655440000',
     status: OrderStatus.RECEIVED,
   } as Order;
 

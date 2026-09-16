@@ -63,7 +63,7 @@ export class OrderOrmEntity {
   exchangeRate: string | null;
 
   @Index({ unique: true })
-  @Column({ name: 'idempotency_key', type: 'varchar', length: 255 })
+  @Column({ name: 'idempotency_key', type: 'uuid' })
   idempotencyKey: string;
 
   @Column({

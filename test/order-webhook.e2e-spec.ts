@@ -59,7 +59,7 @@ describe('Order webhook (e2e)', () => {
     customer: { email: 'user@example.com', name: 'Ana' },
     items: [{ sku: 'ABC123', qty: 2, unit_price: 59.9 }],
     currency: 'USD',
-    idempotency_key: 'idem-1',
+    idempotency_key: '550e8400-e29b-41d4-a716-446655440000',
   };
 
   beforeEach(async () => {
@@ -118,6 +118,16 @@ describe('Order webhook (e2e)', () => {
     await request(app.getHttpServer())
       .post('/webhook/orders')
       .send({ ...validPayload, customer: { email: 'bad', name: 'Ana' } })
+      .expect(400);
+
+    expect(orderRepository.create).not.toHaveBeenCalled();
+    expect(messageBus.publish).not.toHaveBeenCalled();
+  });
+
+  it('POST /webhook/orders returns 400 when idempotency_key is not a uuid', async () => {
+    await request(app.getHttpServer())
+      .post('/webhook/orders')
+      .send({ ...validPayload, idempotency_key: 'idem-1' })
       .expect(400);
 
     expect(orderRepository.create).not.toHaveBeenCalled();
