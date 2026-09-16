@@ -4,8 +4,10 @@ import { Repository } from 'typeorm';
 import { Order, OrderStatus } from '../../../domain/order.entity';
 import type {
   CreateOrderData,
+  FindOrdersParams,
   OrderConversionUpdate,
   OrderRepository,
+  PaginatedOrders,
 } from '../../../domain/order-repository.port';
 import { OrderOrmEntity } from './order.orm-entity';
 import { toDomainOrder } from './order.mapper';
@@ -32,6 +34,26 @@ export class TypeOrmOrderRepository implements OrderRepository {
   async findById(id: string): Promise<Order | null> {
     const entity = await this.repository.findOne({ where: { id } });
     return entity ? toDomainOrder(entity) : null;
+  }
+
+  async findAll(params: FindOrdersParams): Promise<PaginatedOrders> {
+    const where = params.status ? { status: params.status } : {};
+    const skip = (params.page - 1) * params.limit;
+
+    const [entities, total] = await this.repository.findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      skip,
+      take: params.limit,
+    });
+
+    return {
+      data: entities.map(toDomainOrder),
+      total,
+      page: params.page,
+      limit: params.limit,
+      totalPages: Math.ceil(total / params.limit) || 0,
+    };
   }
 
   async create(data: CreateOrderData): Promise<Order> {

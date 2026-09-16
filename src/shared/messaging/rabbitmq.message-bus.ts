@@ -10,7 +10,7 @@ import amqp, {
   type ConsumeMessage,
   type Options,
 } from 'amqplib';
-import type { MessageBus, MessageHandler } from './message-bus.port';
+import type { MessageBus, MessageHandler, QueueMetrics } from './message-bus.port';
 import { RABBITMQ_URL } from './messaging.constants';
 
 @Injectable()
@@ -72,6 +72,17 @@ export class RabbitMqMessageBus
     });
 
     this.logger.log(`Consuming queue "${queue}"`);
+  }
+
+  async getQueueMetrics(queue: string): Promise<QueueMetrics> {
+    await this.assertQueue(queue);
+    const info = await this.getChannel().checkQueue(queue);
+
+    return {
+      queue: info.queue,
+      messageCount: info.messageCount,
+      consumerCount: info.consumerCount,
+    };
   }
 
   private async assertQueue(
