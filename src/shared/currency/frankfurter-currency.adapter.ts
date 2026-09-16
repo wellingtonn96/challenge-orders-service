@@ -5,23 +5,12 @@ import {
   CURRENCY_API_BASE_URL,
   DEFAULT_TARGET_CURRENCY,
 } from './currency.constants';
+import type {
+  ConvertCurrencyInput,
+  ConvertCurrencyResult,
+  CurrencyConverter,
+} from './currency-converter.port';
 
-export type ConvertCurrencyInput = {
-  amount: number;
-  from: string;
-  to?: string;
-};
-
-export type ConvertCurrencyResult = {
-  amount: number;
-  from: string;
-  to: string;
-  convertedAmount: number;
-  rate: number;
-  date: string;
-};
-
-/** Resposta HTTP da Frankfurter API v2. */
 type FrankfurterRateResponse = {
   date: string;
   base: string;
@@ -30,17 +19,13 @@ type FrankfurterRateResponse = {
 };
 
 @Injectable()
-export class CurrencyService {
-  private readonly logger = new Logger(CurrencyService.name);
+export class FrankfurterCurrencyAdapter implements CurrencyConverter {
+  private readonly logger = new Logger(FrankfurterCurrencyAdapter.name);
 
   constructor(
     @Inject(AXIOS_INSTANCE) private readonly http: AxiosInstance,
   ) {}
 
-  /**
-   * Converte um valor via HTTP para a API externa Frankfurter.
-   * GET {CURRENCY_API_BASE_URL}/v2/rate/{from}/{to}
-   */
   async convert(input: ConvertCurrencyInput): Promise<ConvertCurrencyResult> {
     const from = input.from.toUpperCase();
     const to = (input.to ?? DEFAULT_TARGET_CURRENCY).toUpperCase();

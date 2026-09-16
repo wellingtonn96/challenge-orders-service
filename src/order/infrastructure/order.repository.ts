@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Order, OrderStatus } from './entities/order.entity';
-import type { ReceiveOrderDto } from './dto/receive-order.schema';
+import type { ReceiveOrderDto } from '../dto/receive-order.schema';
+import { Order, OrderStatus } from '../entities/order.entity';
 
 export type OrderConversionUpdate = {
   totalAmount: number;

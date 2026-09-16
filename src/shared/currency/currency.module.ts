@@ -1,11 +1,18 @@
 import { Global, Module } from '@nestjs/common';
 import { HttpModule } from '../http/http.module';
-import { CurrencyService } from './currency.service';
+import { CURRENCY_CONVERTER } from './currency-converter.port';
+import { FrankfurterCurrencyAdapter } from './frankfurter-currency.adapter';
 
 @Global()
 @Module({
   imports: [HttpModule],
-  providers: [CurrencyService],
-  exports: [CurrencyService],
+  providers: [
+    FrankfurterCurrencyAdapter,
+    {
+      provide: CURRENCY_CONVERTER,
+      useExisting: FrankfurterCurrencyAdapter,
+    },
+  ],
+  exports: [CURRENCY_CONVERTER, FrankfurterCurrencyAdapter],
 })
 export class CurrencyModule {}

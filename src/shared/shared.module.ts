@@ -1,7 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { CurrencyModule } from './currency/currency.module';
 import { HttpModule } from './http/http.module';
-import { RabbitMqModule } from './rabbitmq/rabbitmq.module';
+import { MessagingModule } from './messaging/messaging.module';
 
 /**
  * Infra compartilhada da aplicação.
@@ -10,7 +10,7 @@ import { RabbitMqModule } from './rabbitmq/rabbitmq.module';
  */
 @Global()
 @Module({
-  imports: [HttpModule, RabbitMqModule, CurrencyModule],
-  exports: [HttpModule, RabbitMqModule, CurrencyModule],
+  imports: [HttpModule, MessagingModule, CurrencyModule],
+  exports: [HttpModule, MessagingModule, CurrencyModule],
 })
 export class SharedModule {}

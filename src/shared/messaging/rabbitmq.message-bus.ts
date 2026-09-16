@@ -10,17 +10,14 @@ import amqp, {
   type ConsumeMessage,
   type Options,
 } from 'amqplib';
-import { RABBITMQ_URL } from './rabbitmq.constants';
-
-export type MessageHandler<T = unknown> = (payload: T) => Promise<void> | void;
-
-export type PublishOptions = Options.Publish & {
-  persistent?: boolean;
-};
+import type { MessageBus, MessageHandler } from './message-bus.port';
+import { RABBITMQ_URL } from './messaging.constants';
 
 @Injectable()
-export class RabbitMqService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(RabbitMqService.name);
+export class RabbitMqMessageBus
+  implements MessageBus, OnModuleInit, OnModuleDestroy
+{
+  private readonly logger = new Logger(RabbitMqMessageBus.name);
   private connection: ChannelModel | null = null;
   private channel: Channel | null = null;
   private readonly assertedQueues = new Set<string>();
@@ -36,35 +33,15 @@ export class RabbitMqService implements OnModuleInit, OnModuleDestroy {
     await this.connection?.close().catch(() => undefined);
   }
 
-  async assertQueue(
-    queue: string,
-    options: Options.AssertQueue = { durable: true },
-  ): Promise<void> {
-    if (this.assertedQueues.has(queue)) {
-      return;
-    }
-
-    await this.getChannel().assertQueue(queue, options);
-    this.assertedQueues.add(queue);
-    this.logger.log(`Queue "${queue}" asserted`);
-  }
-
-  async publish(
-    queue: string,
-    message: unknown,
-    options: PublishOptions = {},
-  ): Promise<boolean> {
+  async publish(queue: string, message: unknown): Promise<boolean> {
     await this.assertQueue(queue);
-
-    const { persistent = true, ...publishOptions } = options;
 
     return this.getChannel().sendToQueue(
       queue,
       Buffer.from(JSON.stringify(message)),
       {
-        persistent,
+        persistent: true,
         contentType: 'application/json',
-        ...publishOptions,
       },
     );
   }
@@ -72,9 +49,8 @@ export class RabbitMqService implements OnModuleInit, OnModuleDestroy {
   async consume<T = unknown>(
     queue: string,
     handler: MessageHandler<T>,
-    options: Options.AssertQueue = { durable: true },
   ): Promise<void> {
-    await this.assertQueue(queue, options);
+    await this.assertQueue(queue);
     const channel = this.getChannel();
 
     await channel.consume(queue, async (msg: ConsumeMessage | null) => {
@@ -96,6 +72,19 @@ export class RabbitMqService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.logger.log(`Consuming queue "${queue}"`);
+  }
+
+  private async assertQueue(
+    queue: string,
+    options: Options.AssertQueue = { durable: true },
+  ): Promise<void> {
+    if (this.assertedQueues.has(queue)) {
+      return;
+    }
+
+    await this.getChannel().assertQueue(queue, options);
+    this.assertedQueues.add(queue);
+    this.logger.log(`Queue "${queue}" asserted`);
   }
 
   private getChannel(): Channel {
