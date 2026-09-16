@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import type { MessageBus } from '../../shared/messaging/message-bus.port';
 import { MESSAGE_BUS } from '../../shared/messaging/message-bus.port';
 import { MessageQueues } from '../../shared/messaging/messaging.constants';
-import { ProcessOrderUseCase } from '../application/process-order.use-case';
+import { ProcessOrderUseCase } from '../application/use-cases/process-order.use-case';
 
 @Injectable()
 export class OrderConsumer implements OnModuleInit {

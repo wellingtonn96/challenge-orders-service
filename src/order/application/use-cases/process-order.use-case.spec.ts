@@ -4,13 +4,13 @@ import type {
   ConvertCurrencyInput,
   ConvertCurrencyResult,
   CurrencyConverter,
-} from '../../shared/currency/currency-converter.port';
-import { OrderStatus } from '../entities/order.entity';
-import type { Order } from '../entities/order.entity';
+} from '../../../shared/currency/currency-converter.port';
 import type {
   OrderConversionUpdate,
   OrderRepository,
-} from '../infrastructure/order.repository';
+} from '../../domain/order-repository.port';
+import { OrderStatus } from '../../domain/order.entity';
+import type { Order } from '../../domain/order.entity';
 
 describe('ProcessOrderUseCase', () => {
   const order = {

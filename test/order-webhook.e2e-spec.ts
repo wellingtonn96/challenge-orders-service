@@ -10,14 +10,16 @@ import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { ReceiveOrderUseCase } from '../src/order/application/receive-order.use-case';
-import { ProcessOrderUseCase } from '../src/order/application/process-order.use-case';
-import { OrderWebhookController } from '../src/order/order-webhook.controller';
-import { OrderStatus } from '../src/order/entities/order.entity';
-import type { Order } from '../src/order/entities/order.entity';
-import type { OrderConversionUpdate } from '../src/order/infrastructure/order.repository';
-import { OrderRepository } from '../src/order/infrastructure/order.repository';
-import type { ReceiveOrderDto } from '../src/order/dto/receive-order.schema';
+import { ReceiveOrderUseCase } from '../src/order/application/use-cases/receive-order.use-case';
+import { ProcessOrderUseCase } from '../src/order/application/use-cases/process-order.use-case';
+import { OrderWebhookController } from '../src/order/presentation/controller/order-webhook.controller';
+import { OrderStatus } from '../src/order/domain/order.entity';
+import type { Order } from '../src/order/domain/order.entity';
+import type {
+  CreateOrderData,
+  OrderConversionUpdate,
+} from '../src/order/domain/order-repository.port';
+import { ORDER_REPOSITORY } from '../src/order/domain/order-repository.port';
 import { MESSAGE_BUS } from '../src/shared/messaging/message-bus.port';
 import { MessageQueues } from '../src/shared/messaging/messaging.constants';
 import type {
@@ -31,7 +33,7 @@ describe('Order webhook (e2e)', () => {
 
   const orderRepository = {
     findByIdempotencyKey: jest.fn<(key: string) => Promise<Order | null>>(),
-    createFromPayload: jest.fn<(payload: ReceiveOrderDto) => Promise<Order>>(),
+    create: jest.fn<(data: CreateOrderData) => Promise<Order>>(),
     findById: jest.fn<(id: string) => Promise<Order | null>>(),
     updateStatus: jest.fn<
       (id: string, status: OrderStatus) => Promise<Order | null>
@@ -52,7 +54,7 @@ describe('Order webhook (e2e)', () => {
     >(),
   };
 
-  const validPayload: ReceiveOrderDto = {
+  const validPayload = {
     order_id: 'ext-123',
     customer: { email: 'user@example.com', name: 'Ana' },
     items: [{ sku: 'ABC123', qty: 2, unit_price: 59.9 }],
@@ -70,7 +72,7 @@ describe('Order webhook (e2e)', () => {
       providers: [
         ReceiveOrderUseCase,
         ProcessOrderUseCase,
-        { provide: OrderRepository, useValue: orderRepository },
+        { provide: ORDER_REPOSITORY, useValue: orderRepository },
         { provide: MESSAGE_BUS, useValue: messageBus },
         { provide: CURRENCY_CONVERTER, useValue: currencyConverter },
       ],
@@ -92,7 +94,7 @@ describe('Order webhook (e2e)', () => {
     } as Order;
 
     orderRepository.findByIdempotencyKey.mockResolvedValue(null);
-    orderRepository.createFromPayload.mockResolvedValue(created);
+    orderRepository.create.mockResolvedValue(created);
 
     const response = await request(app.getHttpServer())
       .post('/webhook/orders')
@@ -100,6 +102,13 @@ describe('Order webhook (e2e)', () => {
       .expect(201);
 
     expect(response.body.id).toBe('order-uuid');
+    expect(orderRepository.create).toHaveBeenCalledWith({
+      externalOrderId: validPayload.order_id,
+      customer: validPayload.customer,
+      items: validPayload.items,
+      currency: validPayload.currency,
+      idempotencyKey: validPayload.idempotency_key,
+    });
     expect(messageBus.publish).toHaveBeenCalledWith(MessageQueues.ORDERS, {
       orderId: 'order-uuid',
     });
@@ -111,7 +120,7 @@ describe('Order webhook (e2e)', () => {
       .send({ ...validPayload, customer: { email: 'bad', name: 'Ana' } })
       .expect(400);
 
-    expect(orderRepository.createFromPayload).not.toHaveBeenCalled();
+    expect(orderRepository.create).not.toHaveBeenCalled();
     expect(messageBus.publish).not.toHaveBeenCalled();
   });
 
@@ -136,7 +145,7 @@ describe('Order webhook (e2e)', () => {
 
     expect(first.body.id).toBe('existing-id');
     expect(second.body.id).toBe('existing-id');
-    expect(orderRepository.createFromPayload).not.toHaveBeenCalled();
+    expect(orderRepository.create).not.toHaveBeenCalled();
     expect(messageBus.publish).not.toHaveBeenCalled();
   });
 

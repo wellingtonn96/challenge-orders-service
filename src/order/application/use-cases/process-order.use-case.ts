@@ -1,16 +1,18 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { CurrencyConverter } from '../../shared/currency/currency-converter.port';
-import { CURRENCY_CONVERTER } from '../../shared/currency/currency-converter.port';
-import { DEFAULT_TARGET_CURRENCY } from '../../shared/currency/currency.constants';
-import { calculateOrderTotal } from '../domain/calculate-total';
-import { OrderStatus } from '../entities/order.entity';
-import { OrderRepository } from '../infrastructure/order.repository';
+import type { CurrencyConverter } from '../../../shared/currency/currency-converter.port';
+import { CURRENCY_CONVERTER } from '../../../shared/currency/currency-converter.port';
+import { DEFAULT_TARGET_CURRENCY } from '../../../shared/currency/currency.constants';
+import { calculateOrderTotal } from '../../domain/calculate-total';
+import type { OrderRepository } from '../../domain/order-repository.port';
+import { ORDER_REPOSITORY } from '../../domain/order-repository.port';
+import { OrderStatus } from '../../domain/order.entity';
 
 @Injectable()
 export class ProcessOrderUseCase {
   private readonly logger = new Logger(ProcessOrderUseCase.name);
 
   constructor(
+    @Inject(ORDER_REPOSITORY)
     private readonly orderRepository: OrderRepository,
     @Inject(CURRENCY_CONVERTER)
     private readonly currencyConverter: CurrencyConverter,

@@ -20,7 +20,7 @@ export const receiveOrderSchema = Joi.object({
   idempotency_key: Joi.string().required(),
 });
 
-export type ReceiveOrderDto = {
+export type ReceiveOrderHttpDto = {
   order_id: string;
   customer: {
     email: string;

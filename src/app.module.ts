@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { OrderModule } from './order/order.module';
-import { Order } from './order/entities/order.entity';
+import { OrderOrmEntity } from './order/infrastructure/database/typeorm/order.orm-entity';
 import { SharedModule } from './shared/shared.module';
 
 @Module({
@@ -15,7 +15,7 @@ import { SharedModule } from './shared/shared.module';
       username: process.env.DATABASE_USER ?? 'orders',
       password: process.env.DATABASE_PASSWORD ?? 'orders',
       database: process.env.DATABASE_NAME ?? 'orders',
-      entities: [Order],
+      entities: [OrderOrmEntity],
       synchronize: process.env.TYPEORM_SYNC !== 'false',
       logging: process.env.TYPEORM_LOGGING === 'true',
     }),

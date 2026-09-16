@@ -1,19 +1,19 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { ReceiveOrderUseCase } from './receive-order.use-case';
-import type { ReceiveOrderDto } from '../dto/receive-order.schema';
-import { OrderStatus } from '../entities/order.entity';
-import type { Order } from '../entities/order.entity';
-import type { OrderRepository } from '../infrastructure/order.repository';
-import type { MessageBus } from '../../shared/messaging/message-bus.port';
-import { MessageQueues } from '../../shared/messaging/messaging.constants';
+import type { ReceiveOrderCommand } from './receive-order.command';
+import type { OrderRepository } from '../../domain/order-repository.port';
+import { OrderStatus } from '../../domain/order.entity';
+import type { Order } from '../../domain/order.entity';
+import type { MessageBus } from '../../../shared/messaging/message-bus.port';
+import { MessageQueues } from '../../../shared/messaging/messaging.constants';
 
 describe('ReceiveOrderUseCase', () => {
-  const payload: ReceiveOrderDto = {
-    order_id: 'ext-123',
+  const command: ReceiveOrderCommand = {
+    externalOrderId: 'ext-123',
     customer: { email: 'user@example.com', name: 'Ana' },
     items: [{ sku: 'ABC123', qty: 2, unit_price: 59.9 }],
     currency: 'USD',
-    idempotency_key: 'key-1',
+    idempotencyKey: 'key-1',
   };
 
   const existingOrder = {
@@ -24,7 +24,7 @@ describe('ReceiveOrderUseCase', () => {
 
   const orderRepository = {
     findByIdempotencyKey: jest.fn<(key: string) => Promise<Order | null>>(),
-    createFromPayload: jest.fn<(payload: ReceiveOrderDto) => Promise<Order>>(),
+    create: jest.fn<(data: unknown) => Promise<Order>>(),
   };
 
   const messageBus = {
@@ -45,20 +45,20 @@ describe('ReceiveOrderUseCase', () => {
   it('returns existing order without publishing when idempotency key matches', async () => {
     orderRepository.findByIdempotencyKey.mockResolvedValue(existingOrder);
 
-    const result = await useCase.execute(payload);
+    const result = await useCase.execute(command);
 
     expect(result).toBe(existingOrder);
-    expect(orderRepository.createFromPayload).not.toHaveBeenCalled();
+    expect(orderRepository.create).not.toHaveBeenCalled();
     expect(messageBus.publish).not.toHaveBeenCalled();
   });
 
   it('creates order and publishes to orders queue', async () => {
     orderRepository.findByIdempotencyKey.mockResolvedValue(null);
-    orderRepository.createFromPayload.mockResolvedValue(existingOrder);
+    orderRepository.create.mockResolvedValue(existingOrder);
 
-    const result = await useCase.execute(payload);
+    const result = await useCase.execute(command);
 
-    expect(orderRepository.createFromPayload).toHaveBeenCalledWith(payload);
+    expect(orderRepository.create).toHaveBeenCalledWith(command);
     expect(messageBus.publish).toHaveBeenCalledWith(MessageQueues.ORDERS, {
       orderId: existingOrder.id,
     });

@@ -6,27 +6,11 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-
-export enum OrderStatus {
-  RECEIVED = 'received',
-  PROCESSING = 'processing',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-}
-
-export type OrderCustomer = {
-  email: string;
-  name: string;
-};
-
-export type OrderItem = {
-  sku: string;
-  qty: number;
-  unit_price: number;
-};
+import { OrderStatus } from '../../../domain/order.entity';
+import type { OrderCustomer, OrderItem } from '../../../domain/order.entity';
 
 @Entity('orders')
-export class Order {
+export class OrderOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
