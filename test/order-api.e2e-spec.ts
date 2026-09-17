@@ -115,21 +115,31 @@ describe('Order API (e2e)', () => {
     expect(orderRepository.findAll).not.toHaveBeenCalled();
   });
 
-  it('GET /orders/metrics/queues returns queue metrics', async () => {
-    const metrics: QueueMetrics = {
+  it('GET /orders/metrics/queues returns queue metrics including DLQ', async () => {
+    const main: QueueMetrics = {
       queue: MessageQueues.ORDERS,
       messageCount: 2,
       consumerCount: 1,
     };
-    messageBus.getQueueMetrics.mockResolvedValue(metrics);
+    const deadLetter: QueueMetrics = {
+      queue: MessageQueues.ORDERS_DLQ,
+      messageCount: 1,
+      consumerCount: 0,
+    };
+    messageBus.getQueueMetrics
+      .mockResolvedValueOnce(main)
+      .mockResolvedValueOnce(deadLetter);
 
     const response = await request(app.getHttpServer())
       .get('/orders/metrics/queues')
       .expect(200);
 
-    expect(response.body).toEqual(metrics);
+    expect(response.body).toEqual({ ...main, deadLetter });
     expect(messageBus.getQueueMetrics).toHaveBeenCalledWith(
       MessageQueues.ORDERS,
+    );
+    expect(messageBus.getQueueMetrics).toHaveBeenCalledWith(
+      MessageQueues.ORDERS_DLQ,
     );
   });
 

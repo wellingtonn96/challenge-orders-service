@@ -4,4 +4,9 @@ export const RABBITMQ_URL =
 
 export const MessageQueues = {
   ORDERS: process.env.RABBITMQ_ORDERS_QUEUE ?? 'orders',
+  ORDERS_DLQ: process.env.RABBITMQ_ORDERS_DLQ ?? 'orders.dlq',
+} as const;
+
+export const MessageExchanges = {
+  ORDERS_DLX: process.env.RABBITMQ_ORDERS_DLX ?? 'orders.dlx',
 } as const;

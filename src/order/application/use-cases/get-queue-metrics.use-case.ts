@@ -6,7 +6,9 @@ import type {
 import { MESSAGE_BUS } from '../../../shared/messaging/message-bus.port';
 import { MessageQueues } from '../../../shared/messaging/messaging.constants';
 
-export type OrdersQueueMetrics = QueueMetrics;
+export type OrdersQueueMetrics = QueueMetrics & {
+  deadLetter: QueueMetrics;
+};
 
 @Injectable()
 export class GetQueueMetricsUseCase {
@@ -14,7 +16,15 @@ export class GetQueueMetricsUseCase {
     @Inject(MESSAGE_BUS) private readonly messageBus: MessageBus,
   ) {}
 
-  execute(): Promise<OrdersQueueMetrics> {
-    return this.messageBus.getQueueMetrics(MessageQueues.ORDERS);
+  async execute(): Promise<OrdersQueueMetrics> {
+    const [main, deadLetter] = await Promise.all([
+      this.messageBus.getQueueMetrics(MessageQueues.ORDERS),
+      this.messageBus.getQueueMetrics(MessageQueues.ORDERS_DLQ),
+    ]);
+
+    return {
+      ...main,
+      deadLetter,
+    };
   }
 }

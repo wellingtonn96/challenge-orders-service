@@ -1,9 +1,14 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { AxiosInstance } from 'axios';
 import { AXIOS_INSTANCE } from '../http/http.constants';
+import { isTransientHttpError } from '../resilience/is-transient-http-error';
+import { withBackoff } from '../resilience/with-backoff';
 import {
   CURRENCY_API_BASE_URL,
   DEFAULT_TARGET_CURRENCY,
+  FX_RETRY_ATTEMPTS,
+  FX_RETRY_BASE_MS,
+  FX_RETRY_MAX_MS,
 } from './currency.constants';
 import type {
   ConvertCurrencyInput,
@@ -50,7 +55,21 @@ export class FrankfurterCurrencyAdapter implements CurrencyConverter {
 
     this.logger.log(`HTTP GET ${url}`);
 
-    const { data } = await this.http.get<FrankfurterRateResponse>(url);
+    const { data } = await withBackoff(
+      () => this.http.get<FrankfurterRateResponse>(url),
+      {
+        retries: FX_RETRY_ATTEMPTS,
+        baseMs: FX_RETRY_BASE_MS,
+        maxMs: FX_RETRY_MAX_MS,
+        shouldRetry: isTransientHttpError,
+        onRetry: (error, attempt, delayMs) => {
+          this.logger.warn(
+            `FX request failed (attempt ${attempt}/${FX_RETRY_ATTEMPTS}); retrying in ${delayMs}ms`,
+            error instanceof Error ? error.message : undefined,
+          );
+        },
+      },
+    );
 
     if (typeof data.rate !== 'number') {
       throw new Error(`Exchange rate not available for ${from} -> ${to}`);

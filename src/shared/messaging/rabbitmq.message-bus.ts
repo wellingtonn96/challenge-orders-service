@@ -11,7 +11,11 @@ import amqp, {
   type Options,
 } from 'amqplib';
 import type { MessageBus, MessageHandler, QueueMetrics } from './message-bus.port';
-import { RABBITMQ_URL } from './messaging.constants';
+import {
+  MessageExchanges,
+  MessageQueues,
+  RABBITMQ_URL,
+} from './messaging.constants';
 
 @Injectable()
 export class RabbitMqMessageBus
@@ -64,7 +68,7 @@ export class RabbitMqMessageBus
         channel.ack(msg);
       } catch (error) {
         this.logger.error(
-          `Failed to process message from queue "${queue}"`,
+          `Failed to process message from queue "${queue}"; sending to DLQ (nack without requeue)`,
           error instanceof Error ? error.stack : undefined,
         );
         channel.nack(msg, false, false);
@@ -93,9 +97,39 @@ export class RabbitMqMessageBus
       return;
     }
 
+    if (queue === MessageQueues.ORDERS) {
+      await this.assertOrdersQueueWithDlq();
+      return;
+    }
+
     await this.getChannel().assertQueue(queue, options);
     this.assertedQueues.add(queue);
     this.logger.log(`Queue "${queue}" asserted`);
+  }
+
+  private async assertOrdersQueueWithDlq(): Promise<void> {
+    const channel = this.getChannel();
+    const mainQueue = MessageQueues.ORDERS;
+    const dlq = MessageQueues.ORDERS_DLQ;
+    const dlx = MessageExchanges.ORDERS_DLX;
+
+    await channel.assertExchange(dlx, 'direct', { durable: true });
+    await channel.assertQueue(dlq, { durable: true });
+    await channel.bindQueue(dlq, dlx, dlq);
+
+    await channel.assertQueue(mainQueue, {
+      durable: true,
+      arguments: {
+        'x-dead-letter-exchange': dlx,
+        'x-dead-letter-routing-key': dlq,
+      },
+    });
+
+    this.assertedQueues.add(dlq);
+    this.assertedQueues.add(mainQueue);
+    this.logger.log(
+      `Queue "${mainQueue}" asserted with DLX "${dlx}" -> DLQ "${dlq}"`,
+    );
   }
 
   private getChannel(): Channel {

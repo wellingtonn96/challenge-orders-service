@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { AxiosError } from 'axios';
 import { FrankfurterCurrencyAdapter } from './frankfurter-currency.adapter';
 import type { AxiosInstance } from 'axios';
 
@@ -10,6 +11,7 @@ describe('FrankfurterCurrencyAdapter', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useRealTimers();
     adapter = new FrankfurterCurrencyAdapter(http as unknown as AxiosInstance);
   });
 
@@ -53,6 +55,52 @@ describe('FrankfurterCurrencyAdapter', () => {
     expect(result.rate).toBe(5.1234);
     expect(result.from).toBe('USD');
     expect(result.to).toBe('BRL');
+  });
+
+  it('retries transient HTTP failures then succeeds', async () => {
+    jest.useFakeTimers();
+    http.get
+      .mockRejectedValueOnce(
+        new AxiosError('Service Unavailable', 'ERR', undefined, undefined, {
+          status: 503,
+          data: {},
+          statusText: 'Service Unavailable',
+          headers: {},
+          config: {} as never,
+        }),
+      )
+      .mockResolvedValueOnce({
+        data: {
+          date: '2026-09-16',
+          base: 'USD',
+          quote: 'BRL',
+          rate: 5,
+        },
+      });
+
+    const promise = adapter.convert({ amount: 10, from: 'USD', to: 'BRL' });
+    await jest.runAllTimersAsync();
+    const result = await promise;
+
+    expect(http.get).toHaveBeenCalledTimes(2);
+    expect(result.convertedAmount).toBe(50);
+  });
+
+  it('does not retry non-transient HTTP errors', async () => {
+    http.get.mockRejectedValue(
+      new AxiosError('Not Found', 'ERR', undefined, undefined, {
+        status: 404,
+        data: {},
+        statusText: 'Not Found',
+        headers: {},
+        config: {} as never,
+      }),
+    );
+
+    await expect(
+      adapter.convert({ amount: 10, from: 'USD', to: 'BRL' }),
+    ).rejects.toBeInstanceOf(AxiosError);
+    expect(http.get).toHaveBeenCalledTimes(1);
   });
 
   it('rejects negative amounts', async () => {

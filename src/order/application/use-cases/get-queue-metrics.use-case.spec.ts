@@ -20,19 +20,29 @@ describe('GetQueueMetricsUseCase', () => {
     );
   });
 
-  it('returns metrics for the orders queue', async () => {
-    const metrics: QueueMetrics = {
+  it('returns metrics for the orders queue and its DLQ', async () => {
+    const main: QueueMetrics = {
       queue: MessageQueues.ORDERS,
       messageCount: 3,
       consumerCount: 1,
     };
-    messageBus.getQueueMetrics.mockResolvedValue(metrics);
+    const deadLetter: QueueMetrics = {
+      queue: MessageQueues.ORDERS_DLQ,
+      messageCount: 2,
+      consumerCount: 0,
+    };
+    messageBus.getQueueMetrics
+      .mockResolvedValueOnce(main)
+      .mockResolvedValueOnce(deadLetter);
 
     const result = await useCase.execute();
 
-    expect(result).toEqual(metrics);
+    expect(result).toEqual({ ...main, deadLetter });
     expect(messageBus.getQueueMetrics).toHaveBeenCalledWith(
       MessageQueues.ORDERS,
+    );
+    expect(messageBus.getQueueMetrics).toHaveBeenCalledWith(
+      MessageQueues.ORDERS_DLQ,
     );
   });
 });
