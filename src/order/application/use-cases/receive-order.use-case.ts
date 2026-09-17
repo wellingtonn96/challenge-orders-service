@@ -5,8 +5,10 @@ import { MessageQueues } from '../../../shared/messaging/messaging.constants';
 import type { OrderRepository } from '../../domain/order-repository.port';
 import { ORDER_REPOSITORY } from '../../domain/order-repository.port';
 import type { Order } from '../../domain/order.entity';
-import type { ReceiveOrderCommand } from './receive-order.command';
 
+import type { CreateOrderData } from '../../domain/order-repository.port';
+
+export type ReceiveOrderCommand = CreateOrderData;
 @Injectable()
 export class ReceiveOrderUseCase {
   constructor(

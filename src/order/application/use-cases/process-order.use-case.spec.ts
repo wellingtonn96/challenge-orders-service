@@ -94,7 +94,7 @@ describe('ProcessOrderUseCase', () => {
 
     expect(orderRepository.updateStatus).toHaveBeenCalledWith(
       order.id,
-      OrderStatus.FAILED,
+      OrderStatus.FAILED_ENRICHMENT,
     );
     expect(orderRepository.updateConversion).not.toHaveBeenCalled();
   });

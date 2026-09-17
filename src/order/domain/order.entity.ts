@@ -1,8 +1,9 @@
 export enum OrderStatus {
-  RECEIVED = 'received',
-  PROCESSING = 'processing',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
+  RECEIVED = 'RECEIVED',
+  PROCESSING = 'PROCESSING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  FAILED_ENRICHMENT = 'FAILED_ENRICHMENT',
 }
 
 export type OrderCustomer = {

@@ -11,10 +11,11 @@ import { OrderOrmEntity } from './infrastructure/database/typeorm/order.orm-enti
 import { TypeOrmOrderRepository } from './infrastructure/database/typeorm/typeorm-order.repository';
 import { OrderController } from './presentation/controller/order.controller';
 import { OrderWebhookController } from './presentation/controller/order-webhook.controller';
+import { QueueController } from './presentation/controller/queue.controller';
 
 @Module({
   imports: [TypeOrmModule.forFeature([OrderOrmEntity])],
-  controllers: [OrderWebhookController, OrderController],
+  controllers: [OrderWebhookController, OrderController, QueueController],
   providers: [
     TypeOrmOrderRepository,
     {

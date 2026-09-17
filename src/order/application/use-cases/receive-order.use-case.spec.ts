@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { ReceiveOrderUseCase } from './receive-order.use-case';
-import type { ReceiveOrderCommand } from './receive-order.command';
+import { ReceiveOrderCommand, ReceiveOrderUseCase } from './receive-order.use-case';
 import type { OrderRepository } from '../../domain/order-repository.port';
 import { OrderStatus } from '../../domain/order.entity';
 import type { Order } from '../../domain/order.entity';

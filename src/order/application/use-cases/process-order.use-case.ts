@@ -49,7 +49,10 @@ export class ProcessOrderUseCase {
         `Order ${orderId} processed: ${totalAmount} ${order.currency} -> ${conversion.convertedAmount} ${conversion.to}`,
       );
     } catch (error) {
-      await this.orderRepository.updateStatus(orderId, OrderStatus.FAILED);
+      await this.orderRepository.updateStatus(
+        orderId,
+        OrderStatus.FAILED_ENRICHMENT,
+      );
       this.logger.error(
         `Failed to process order ${orderId}`,
         error instanceof Error ? error.stack : undefined,
