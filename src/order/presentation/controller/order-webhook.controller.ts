@@ -7,7 +7,7 @@ import {
   type ReceiveOrderHttpDto,
 } from '../dto/receive-order.http-dto';
 
-@Controller('webhook')
+@Controller('webhooks')
 export class OrderWebhookController {
   constructor(private readonly receiveOrderUseCase: ReceiveOrderUseCase) {}
 

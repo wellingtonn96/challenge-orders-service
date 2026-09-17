@@ -38,7 +38,7 @@ npm run test:e2e  # e2e
 
 ## Fluxo
 
-1. `POST /webhook/orders` → valida, grava (`RECEIVED`), publica na fila `orders`
+1. `POST /webhooks/orders` → valida, grava (`RECEIVED`), publica na fila `orders`
 2. Consumer processa → câmbio (retry/backoff) → `COMPLETED`
 3. Se FX falhar após retries → `FAILED_ENRICHMENT` + mensagem na DLQ
 
@@ -60,10 +60,10 @@ npm run test:e2e  # e2e
 
 ## API
 
-### `POST /webhook/orders`
+### `POST /webhooks/orders`
 
 ```bash
-curl -X POST http://localhost:3000/webhook/orders \
+curl -X POST http://localhost:3000/webhooks/orders \
   -H "Content-Type: application/json" \
   -d '{
     "order_id": "ext-123",

@@ -86,7 +86,7 @@ describe('Order webhook (e2e)', () => {
     await app.close();
   });
 
-  it('POST /webhook/orders accepts valid payload and publishes to queue', async () => {
+  it('POST /webhooks/orders accepts valid payload and publishes to queue', async () => {
     const created = {
       id: 'order-uuid',
       status: OrderStatus.RECEIVED,
@@ -97,7 +97,7 @@ describe('Order webhook (e2e)', () => {
     orderRepository.create.mockResolvedValue(created);
 
     const response = await request(app.getHttpServer())
-      .post('/webhook/orders')
+      .post('/webhooks/orders')
       .send(validPayload)
       .expect(201);
 
@@ -114,9 +114,9 @@ describe('Order webhook (e2e)', () => {
     });
   });
 
-  it('POST /webhook/orders returns 400 for invalid payload', async () => {
+  it('POST /webhooks/orders returns 400 for invalid payload', async () => {
     await request(app.getHttpServer())
-      .post('/webhook/orders')
+      .post('/webhooks/orders')
       .send({ ...validPayload, customer: { email: 'bad', name: 'Ana' } })
       .expect(400);
 
@@ -124,9 +124,9 @@ describe('Order webhook (e2e)', () => {
     expect(messageBus.publish).not.toHaveBeenCalled();
   });
 
-  it('POST /webhook/orders returns 400 when idempotency_key is not a uuid', async () => {
+  it('POST /webhooks/orders returns 400 when idempotency_key is not a uuid', async () => {
     await request(app.getHttpServer())
-      .post('/webhook/orders')
+      .post('/webhooks/orders')
       .send({ ...validPayload, idempotency_key: 'idem-1' })
       .expect(400);
 
@@ -134,7 +134,7 @@ describe('Order webhook (e2e)', () => {
     expect(messageBus.publish).not.toHaveBeenCalled();
   });
 
-  it('POST /webhook/orders is idempotent for the same key', async () => {
+  it('POST /webhooks/orders is idempotent for the same key', async () => {
     const existing = {
       id: 'existing-id',
       status: OrderStatus.COMPLETED,
@@ -144,12 +144,12 @@ describe('Order webhook (e2e)', () => {
     orderRepository.findByIdempotencyKey.mockResolvedValue(existing);
 
     const first = await request(app.getHttpServer())
-      .post('/webhook/orders')
+      .post('/webhooks/orders')
       .send(validPayload)
       .expect(201);
 
     const second = await request(app.getHttpServer())
-      .post('/webhook/orders')
+      .post('/webhooks/orders')
       .send(validPayload)
       .expect(201);
 
