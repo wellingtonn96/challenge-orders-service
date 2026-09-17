@@ -1,118 +1,133 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Challenge Pedidos
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API NestJS para receber pedidos via webhook, processá-los de forma assíncrona (RabbitMQ) e converter o valor com a API Frankfurter (USD → BRL). Persistência em PostgreSQL.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## Stack
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- **NestJS 12** + TypeScript
+- **PostgreSQL** + TypeORM
+- **RabbitMQ** (amqplib) — fila `orders` + DLQ `orders.dlq`
+- **Joi** — validação HTTP
+- **Axios** — HTTP client (câmbio)
+- **Frankfurter** — conversão de moedas
+- **Jest** + Supertest — testes
+- **Docker Compose** — Postgres + RabbitMQ (+ app opcional)
 
-## Project setup
+---
+
+## Como rodar
 
 ```bash
-$ npm install
+docker compose up -d postgres rabbitmq
+cp .env.example .env
+npm install
+npm run start:dev
 ```
 
-## Compile and run the project
+API: `http://localhost:3000`  
+RabbitMQ UI: `http://localhost:15672` (`orders` / `orders`)
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm test          # unitários
+npm run test:e2e  # e2e
 ```
 
-## Run tests
+---
+
+## Fluxo
+
+1. `POST /webhook/orders` → valida, grava (`RECEIVED`), publica na fila `orders`
+2. Consumer processa → câmbio (retry/backoff) → `COMPLETED`
+3. Se FX falhar após retries → `FAILED_ENRICHMENT` + mensagem na DLQ
+
+**Idempotência:** mesmo `idempotency_key` (UUID) não duplica pedido nem republica na fila.
+
+---
+
+## Status
+
+| Status | Significado |
+|--------|-------------|
+| `RECEIVED` | Recebido e enfileirado |
+| `PROCESSING` | Em processamento |
+| `COMPLETED` | Convertido com sucesso |
+| `FAILED_ENRICHMENT` | Falha no câmbio; mensagem na DLQ |
+| `FAILED` | Reservado |
+
+---
+
+## API
+
+### `POST /webhook/orders`
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+curl -X POST http://localhost:3000/webhook/orders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "order_id": "ext-123",
+    "customer": { "email": "user@example.com", "name": "Ana" },
+    "items": [{ "sku": "ABC123", "qty": 2, "unit_price": 59.9 }],
+    "currency": "USD",
+    "idempotency_key": "550e8400-e29b-41d4-a716-446655440000"
+  }'
 ```
 
-## Deployment
+- `201` criado (ou retornado se key já existir)
+- `400` validação (`idempotency_key` deve ser UUID; `unit_price` obrigatório)
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### `GET /orders`
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Query: `page` (default 1), `limit` (default 20, máx 100), `status` (opcional).
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+curl "http://localhost:3000/orders?page=1&limit=10&status=COMPLETED"
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Resposta: `{ data, total, page, limit, totalPages }`
 
-## Observability
+### `GET /orders/:id`
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+```bash
+curl "http://localhost:3000/orders/<UUID>"
+```
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
+`404` se não existir.
 
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
+### `GET /queue/metrics` (ou `GET /orders/metrics/queues`)
 
-This project is already instrumented. Create a free account at [observe.nestjs.com](https://observe.nestjs.com), add an application, and paste the generated app key and secret into the `ObserveModule.forRoot()` call in `src/app.module.ts`.
+```bash
+curl "http://localhost:3000/queue/metrics"
+```
 
-The free plan needs no payment details and covers 300,000 events a month. You can also browse the [live demo](https://www.observe-demo.nestjs.com/dashboard) first - the whole dashboard over a busy service's data, with nothing to install.
+Retorna contagem da fila `orders` e da DLQ `orders.dlq`.
 
-## Resources
+---
 
-Check out a few resources that may come in handy when working with NestJS:
+## Resiliência
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observe](https://observe.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+- **FX:** até 3 retries com backoff (200→400→800ms), só rede/429/5xx  
+  (`FX_RETRY_ATTEMPTS`, `FX_RETRY_BASE_MS`, `FX_RETRY_MAX_MS`)
+- **DLQ:** após falha definitiva, `nack` sem requeue → `orders.dlq`
 
-## Support
+> Se a fila `orders` já existir sem config de DLX, delete-a no RabbitMQ e reinicie a app.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+---
 
-## Stay in touch
+## Estrutura
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```
+src/order/
+  domain/                 # entidade, ports, cálculo de total
+  application/use-cases/  # receive, process, list, get, metrics
+  presentation/           # controllers + DTOs Joi
+  infrastructure/         # TypeORM + consumer
+src/shared/               # messaging, currency, http, resilience
+```
 
-## License
+---
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+## Env
+
+Ver `.env.example`. Principais: `DATABASE_*`, `RABBITMQ_*`, `CURRENCY_API_BASE_URL`, `DEFAULT_TARGET_CURRENCY` (`BRL`), `FX_RETRY_*`.
